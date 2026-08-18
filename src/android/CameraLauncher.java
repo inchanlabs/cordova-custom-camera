@@ -510,6 +510,9 @@ public class CameraLauncher extends CordovaPlugin
                             MediaStore.ACTION_IMAGE_CAPTURE
                     );
 
+                // TEMPORARY TEST: FORCE FRONT CAMERA
+                this.cameraDirection = CAMERA_DIRECTION_FRONT;
+
             /*
              * ================================================================
              * CAMERA DIRECTION
