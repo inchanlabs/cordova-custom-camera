@@ -4,7 +4,7 @@
   "description": "Cordova Camera Plugin",
   "types": "./types/index.d.ts",
   "cordova": {
-    "id": "cordova-plugin-camera",
+    "id": "cordova-custom-camera",
     "platforms": [
       "android",
       "ios",
