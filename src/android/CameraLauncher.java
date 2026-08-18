@@ -2476,4 +2476,3 @@ public class CameraLauncher extends CordovaPlugin
         return getMimetypeForEncodingType();
     }
 }
-```
