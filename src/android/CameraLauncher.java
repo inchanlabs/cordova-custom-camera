@@ -115,6 +115,22 @@ public class CameraLauncher extends CordovaPlugin
 
     private static final String TIME_FORMAT = "yyyyMMdd_HHmmss";
 
+    /*
+     * Camera direction.
+     *
+     * 0 = BACK
+     * 1 = FRONT
+     */
+    public static final int CAMERA_DIRECTION_BACK = 0;
+    public static final int CAMERA_DIRECTION_FRONT = 1;
+
+    /*
+     * Intent extra used by a number of Android camera applications
+     * to request the front/back camera.
+     */
+    private static final String CAMERA_FACING_EXTRA =
+            "android.intent.extras.CAMERA_FACING";
+
     private int mQuality;
     private int targetWidth;
     private int targetHeight;
@@ -125,6 +141,15 @@ public class CameraLauncher extends CordovaPlugin
     private int mediaType;
     private int destType;
     private int srcType;
+
+    /*
+     * Camera direction.
+     *
+     * 0 = BACK
+     * 1 = FRONT
+     */
+    private int cameraDirection =
+            CAMERA_DIRECTION_BACK;
 
     private boolean saveToPhotoAlbum;
     private boolean correctOrientation;
@@ -178,6 +203,13 @@ public class CameraLauncher extends CordovaPlugin
             this.mediaType = PICTURE;
             this.mQuality = 50;
 
+            /*
+             * Default camera direction:
+             * BACK
+             */
+            this.cameraDirection =
+                    CAMERA_DIRECTION_BACK;
+
             try {
 
                 if (args != null && args.length() > 0) {
@@ -222,6 +254,19 @@ public class CameraLauncher extends CordovaPlugin
                             args.getBoolean(9);
                 }
 
+                /*
+                 * NEW:
+                 *
+                 * args[10] = cameraDirection
+                 *
+                 * 0 = BACK
+                 * 1 = FRONT
+                 */
+                if (args != null && args.length() > 10) {
+                    this.cameraDirection =
+                            args.getInt(10);
+                }
+
             } catch (Exception e) {
 
                 callbackContext.error(
@@ -231,6 +276,39 @@ public class CameraLauncher extends CordovaPlugin
 
                 return true;
             }
+
+            /*
+             * Validate camera direction.
+             *
+             * Anything other than 0 or 1
+             * falls back to BACK.
+             */
+            if (this.cameraDirection
+                    != CAMERA_DIRECTION_BACK
+                    && this.cameraDirection
+                    != CAMERA_DIRECTION_FRONT) {
+
+                LOG.d(
+                        LOG_TAG,
+                        "Invalid camera direction: "
+                                + this.cameraDirection
+                                + ". Defaulting to BACK."
+                );
+
+                this.cameraDirection =
+                        CAMERA_DIRECTION_BACK;
+            }
+
+            LOG.d(
+                    LOG_TAG,
+                    "Camera direction requested: "
+                            + (
+                                this.cameraDirection
+                                        == CAMERA_DIRECTION_FRONT
+                                        ? "FRONT"
+                                        : "BACK"
+                            )
+            );
 
             if (this.targetWidth < 1) {
                 this.targetWidth = -1;
@@ -463,6 +541,34 @@ public class CameraLauncher extends CordovaPlugin
                             MediaStore.ACTION_IMAGE_CAPTURE
                     );
 
+            /*
+             * -------------------------------------------------------------
+             * CAMERA DIRECTION
+             * -------------------------------------------------------------
+             *
+             * 0 = BACK
+             * 1 = FRONT
+             *
+             * This extra is recognized by many Android camera
+             * applications, although it is not guaranteed by the
+             * ACTION_IMAGE_CAPTURE contract on every OEM device.
+             */
+            intent.putExtra(
+                    CAMERA_FACING_EXTRA,
+                    this.cameraDirection
+            );
+
+            LOG.d(
+                    LOG_TAG,
+                    "Requested camera direction: "
+                            + (
+                                this.cameraDirection
+                                        == CAMERA_DIRECTION_FRONT
+                                        ? "FRONT"
+                                        : "BACK"
+                            )
+            );
+
             PackageManager packageManager =
                     cordova.getActivity()
                             .getPackageManager();
@@ -550,6 +656,17 @@ public class CameraLauncher extends CordovaPlugin
                     LOG_TAG,
                     "Camera output URI: "
                             + this.imageUri
+            );
+
+            LOG.d(
+                    LOG_TAG,
+                    "Camera direction: "
+                            + (
+                                this.cameraDirection
+                                        == CAMERA_DIRECTION_FRONT
+                                        ? "FRONT"
+                                        : "BACK"
+                            )
             );
 
             this.cordova.startActivityForResult(
@@ -1001,9 +1118,6 @@ public class CameraLauncher extends CordovaPlugin
 
         try {
 
-            /*
-             * If cropping was used, read the cropped file.
-             */
             if (allowEdit
                     && croppedUri != null
                     && croppedFilePath != null) {
@@ -1020,9 +1134,6 @@ public class CameraLauncher extends CordovaPlugin
 
             } else {
 
-                /*
-                 * Normal camera output.
-                 */
                 ContentResolver resolver =
                         cordova.getActivity()
                                 .getContentResolver();
@@ -1106,9 +1217,6 @@ public class CameraLauncher extends CordovaPlugin
 
             Uri galleryUri = null;
 
-            /*
-             * Save to gallery if requested.
-             */
             if (saveToPhotoAlbum) {
 
                 GalleryPathVO galleryPathVO =
@@ -1158,13 +1266,6 @@ public class CameraLauncher extends CordovaPlugin
                                 mimeType
                         );
 
-                /*
-                 * Some camera applications return a
-                 * thumbnail through the Intent.
-                 *
-                 * Do NOT require this because EXTRA_OUTPUT
-                 * normally means the image is in imageUri.
-                 */
                 if (bitmap == null
                         && intent != null
                         && intent.getExtras() != null) {
@@ -1239,10 +1340,6 @@ public class CameraLauncher extends CordovaPlugin
                                 outputFile
                         );
 
-                /*
-                 * Return original image without
-                 * recompression when possible.
-                 */
                 if (targetHeight == -1
                         && targetWidth == -1
                         && mQuality == 100
@@ -2822,6 +2919,14 @@ public class CameraLauncher extends CordovaPlugin
                 mediaType
         );
 
+        /*
+         * Save camera direction.
+         */
+        state.putInt(
+                "cameraDirection",
+                cameraDirection
+        );
+
         state.putBoolean(
                 "allowEdit",
                 allowEdit
@@ -2905,6 +3010,26 @@ public class CameraLauncher extends CordovaPlugin
                 state.getInt(
                         "mediaType"
                 );
+
+        /*
+         * Restore camera direction.
+         *
+         * Defaults to BACK for older saved states.
+         */
+        this.cameraDirection =
+                state.getInt(
+                        "cameraDirection",
+                        CAMERA_DIRECTION_BACK
+                );
+
+        if (this.cameraDirection
+                != CAMERA_DIRECTION_BACK
+                && this.cameraDirection
+                != CAMERA_DIRECTION_FRONT) {
+
+            this.cameraDirection =
+                    CAMERA_DIRECTION_BACK;
+        }
 
         this.allowEdit =
                 state.getBoolean(
