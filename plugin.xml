@@ -19,7 +19,7 @@
 -->
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android"
-    id="cordova-plugin-camera"
+    id="cordova-custom-camera"
     version="9.0.0-dev">
     <name>Camera</name>
     <description>Cordova Camera Plugin</description>
