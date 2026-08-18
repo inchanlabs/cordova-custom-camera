@@ -1,0 +1,728 @@
+---
+title: Camera
+description: Take pictures with the device camera.
+---
+<!--
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+-->
+# cordova-plugin-camera
+
+[![npm - Latest](https://img.shields.io/npm/v/cordova-plugin-camera/latest?label=Latest%20Release%20(npm))](https://npmjs.com/package/cordova-plugin-camera)
+
+[![GitHub](https://img.shields.io/github/package-json/v/apache/cordova-plugin-camera?label=Development%20(Git))](https://github.com/apache/cordova-plugin-camera)
+[![GitHub - Android Workflow](https://github.com/apache/cordova-plugin-camera/actions/workflows/android.yml/badge.svg?branch=master)](https://github.com/apache/cordova-plugin-camera/actions/workflows/android.yml?query=branch%3Amaster)
+[![GitHub - Chrome Workflow](https://github.com/apache/cordova-plugin-camera/actions/workflows/chrome.yml/badge.svg?branch=master)](https://github.com/apache/cordova-plugin-camera/actions/workflows/chrome.yml?query=branch%3Amaster)
+[![GitHub - iOS Workflow](https://github.com/apache/cordova-plugin-camera/actions/workflows/ios.yml/badge.svg?branch=master)](https://github.com/apache/cordova-plugin-camera/actions/workflows/ios.yml?query=branch%3Amaster)
+[![GitHub - Lint](https://github.com/apache/cordova-plugin-camera/actions/workflows/lint.yml/badge.svg?branch=master)](https://github.com/apache/cordova-plugin-camera/actions/workflows/lint.yml?query=branch%3Amaster)
+[![GitHub - Release Audit Workflow](https://github.com/apache/cordova-plugin-camera/actions/workflows/release-audit.yml/badge.svg?branch=master)](https://github.com/apache/cordova-plugin-camera/actions/workflows/release-audit.yml?query=branch%3Amaster)
+
+> [!NOTE]
+> Depending on your use case, this plugin may be unnecessary.
+>
+> We strongly recommend using the WebView's native `<input type="file" accept="image/*" capture />` element before opting for this plugin.
+>
+> The example above demonstrates how to capture an image. If you only need to select an existing image, simply remove the `capture` attribute.
+>
+> For more information:
+>
+> - [MDN – HTML element: `<input type="file">`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/input/file)
+> - [MDN – HTML attribute: `accept`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/accept)
+> - [MDN – HTML attribute: `capture`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture)
+>
+> For advanced use cases, this plugin may be appropriate.
+
+This plugin defines a global `navigator.camera` object, which provides an API for taking pictures and choosing images from the device's image library.
+
+Although the object is attached to the global `navigator` object, it is not available until after the `deviceready` event.
+
+```js
+document.addEventListener("deviceready", onDeviceReady, false);
+
+function onDeviceReady() {
+    console.log(navigator.camera);
+}
+```
+
+## Supported Platforms
+
+- Android
+- Browser
+- iOS
+
+## Installation
+
+```bash
+cordova plugin add cordova-plugin-camera
+```
+
+### Plugin Variables
+
+Plugin variables let you configure parts of a plugin and must be set during installation. To set these variables, append `--variable {VARIABLE_NAME}={VALUE}` to the `cordova plugin add` command for each variable. If you wish you change or remove any of the plugin variables, uninstall and reinstall with the updated variables.
+
+- **`ANDROIDX_CORE_VERSION`**
+
+    **Default:** `1.6.+`
+
+    This variable allows you to configure the `androidx.core:core` dependency for this plugin only. Some plugins may include this dependency with hard-coded versions, so you can use this variable to try to match those versions and reduce conflicts.
+
+    **Example:**
+
+    ```bash
+    cordova plugin add cordova-plugin-camera --variable ANDROIDX_CORE_VERSION=1.8.0
+    ```
+
+## App Configuration
+
+The following preferences can be set in the app's `config.xml` file to configure the plugin.
+
+### Android-Specific
+
+#### Supporting `saveToPhotoAlbum` on Android 9 (API 28) & Lower
+
+> [!WARNING]
+> If you support Android 9 (API 28) and lower and need `saveToPhotoAlbum`, then this step is required.
+>
+> If you support only Android 10 (API 29) and later, or do not need `saveToPhotoAlbum`, then skip this step.
+>
+> Configuring the `WRITE_EXTERNAL_STORAGE` permission for Android 10 or later has no effect.
+
+To declare the `WRITE_EXTERNAL_STORAGE` permission, add the following:
+
+```xml
+<config-file target="AndroidManifest.xml" parent="/*" xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+</config-file>
+```
+
+### iOS-Specific
+
+#### Mandatory Usage Description
+
+> [!WARNING]
+> Since iOS 10, you must provide usage descriptions in the `info.plist` when accessing privacy-sensitive data.
+
+The required keys depend on how you use the plugin and which iOS versions you support:
+
+| Key                            | Description |
+| ------------------------------ | ----------- |
+| NSCameraUsageDescription | Required whenever the camera is used (e.g. `Camera.PictureSourceType.CAMERA`). |
+| NSPhotoLibraryUsageDescription | Required only when your app runs on iOS 13 or older and using as `sourceType` `Camera.PictureSourceType.PHOTOLIBRARY`. On iOS 14+ the plugin uses PHPicker for read-only access, which does not need this key. |
+| NSPhotoLibraryAddUsageDescription | Required when the plugin writes to the user's library (e.g. `saveToPhotoAlbum=true`). |
+| NSLocationWhenInUseUsageDescription | Required if `CameraUsesGeolocation` is set to `true`. |
+
+When the system prompts the user to allow access, this usage description string will be displayed as part of the permission dialog box. If you don't provide the required usage description, the app will crash before showing the dialog. Also, Apple will reject apps that access private data but don't provide a usage description.
+
+To add these entries into the `info.plist`, you can use the `edit-config` tag in the `config.xml` like this:
+
+```xml
+<edit-config target="NSCameraUsageDescription" file="*-Info.plist" mode="merge">
+    <string>need camera access to take pictures</string>
+</edit-config>
+
+<edit-config target="NSPhotoLibraryUsageDescription" file="*-Info.plist" mode="merge">
+    <string>need photo library access to get pictures from there</string>
+</edit-config>
+
+<edit-config target="NSPhotoLibraryAddUsageDescription" file="*-Info.plist" mode="merge">
+    <string>need photo library access to save pictures there</string>
+</edit-config>
+
+<edit-config target="NSLocationWhenInUseUsageDescription" file="*-Info.plist" mode="merge">
+    <string>need location access to find things nearby</string>
+</edit-config>
+```
+
+#### Preferences
+
+- **`CameraUsesGeolocation`**
+
+    **Default:** `false` (boolean)
+
+    Enables geolocation data in the EXIF header when capturing JPEG images. When set to `true`, the app will request for geolocation permissions .
+
+    To set this preference, add the following:
+
+    ```xml
+    <preference name="CameraUsesGeolocation" value="false" />
+    ```
+
+---
+
+# API Reference <a name="reference"></a>
+
+- [camera](#module_camera)
+  - [.getPicture(successCallback, errorCallback, options)](#module_camera.getPicture)
+    - [.stop()](#module_camera.stop)
+  - [.cleanup()](#module_camera.cleanup)
+  - [.onError](#module_camera.onError) : <code>function</code>
+  - [.onSuccess](#module_camera.onSuccess) : <code>function</code>
+  - [.CameraOptions](#module_camera.CameraOptions) : <code>Object</code>
+
+- [Camera](#module_Camera)
+  - [.DestinationType](#module_Camera.DestinationType) : <code>enum</code>
+  - [.EncodingType](#module_Camera.EncodingType) : <code>enum</code>
+  - [.MediaType](#module_Camera.MediaType) : <code>enum</code>
+  - [.PictureSourceType](#module_Camera.PictureSourceType) : <code>enum</code>
+  - [.Direction](#module_Camera.Direction) : <code>enum</code>
+
+---
+
+<a name="module_camera"></a>
+
+## camera
+<a name="module_camera.getPicture"></a>
+
+### camera.getPicture(successCallback, errorCallback, options)
+Takes a photo using the camera, or retrieves a photo from the device's
+image gallery. The result is provided in the first parameter of the `successCallback` as a string.
+
+As of v8.0.0, the result is formatted as URIs. The scheme will vary depending on settings and platform.
+
+|Platform|Destination Type|Format|
+|---|---|---|
+|Android|FILE_URI|An URI scheme such as `file://...` or `content://...`|
+||DATA_URL|Base 64 encoded with the proper data URI header|
+|iOS|FILE_URI|`file://` schemed paths|
+||DATA_URL|Base 64 encoded with the proper data URI header|
+|Browser|FILE_URI|Not supported|
+||DATA_URL|Base 64 encoded with the proper data URI header|
+
+v7 and earlier versions, the return format is as follows:
+
+|Platform|Destination Type|Format|
+|---|---|---|
+|Android|FILE_URI|Raw file path (unprefixed)|
+||DATA_URL|Base 64 encoded, without the `data:` prefix
+|iOS|FILE_URI|`file://` schemed paths|
+||DATA_URL|Base 64 encoded, without the `data:` prefix
+|Browser|FILE_URI|Not supported|
+||DATA_URL|Base 64 encoded, without the `data:` prefix|
+
+For this reason, upgrading to v8 is strongly recommended as it greatly streamlines the return data.
+
+The `camera.getPicture` function opens the device's default camera
+application that allows users to snap pictures by default - this behavior occurs,
+when `Camera.sourceType` equals [`Camera.PictureSourceType.CAMERA`](#module_Camera.PictureSourceType).
+Once the user snaps the photo, the camera application closes and the application is restored.
+
+If `Camera.sourceType` is `Camera.PictureSourceType.PHOTOLIBRARY` or
+`Camera.PictureSourceType.SAVEDPHOTOALBUM`, then a dialog displays
+that allows users to select an existing image.
+
+The return value is sent to the [`cameraSuccess`](#module_camera.onSuccess) callback function, in
+one of the following formats, depending on the specified
+`cameraOptions`. You can do whatever you want with content:
+
+- Render the content in an `<img>` or `<video>` tag
+- Copy the data to a persistent location
+- Post the data to a remote server
+
+__NOTE__: Photo resolution on newer devices is quite good. Photos
+selected from the device's gallery are not downscaled to a lower
+quality, even if a `quality` parameter is specified.  To avoid common
+memory problems, set `Camera.destinationType` to `FILE_URI` rather
+than `DATA_URL`.
+
+#### FILE_URI Usage
+
+When `FILE_URI` is used, the returned path is not directly usable. The file path needs to be resolved into
+a DOM-usable URL using the [Cordova File Plugin](https://github.com/apache/cordova-plugin-file).
+
+Additionally, the file URIs returned is a temporary read access grant. The OS reserves the right to revoke permission to access the resource, which typically occurs after the app has been closed. For images captured using the camera, the image is stored in a temporary location which can be cleared at any time, usually after the app exits. It's the application's decision to decide how the content should be used depending on their use cases.
+
+For persistent access to the content, the resource should be copied to your app's storage container. An example use case is an app allowing an user to select a profile picture from their gallery or camera. The application will need
+consistent access to that resource, so it's not suitable to retain the temporary access path. So the appplication should copy the resource to a persistent location.
+
+For use cases that involve temporary use, it is valid and safe to use the temporary file path to display the content. An example of this could be an image editing application, rendering the data into a canvas.
+
+__NOTE__: The returned schemes is an implementation detail. Do not assume that it will always be a `file://` URI.
+
+__Supported Platforms__
+
+- Android
+- Browser
+- iOS
+
+More examples [here](#camera-getPicture-examples). Quirks [here](#camera-getPicture-quirks).
+
+**Kind**: static method of <code>[camera](#module_camera)</code>
+
+| Param | Type | Description |
+| --- | --- | --- |
+| successCallback | <code>[onSuccess](#module_camera.onSuccess)</code> |  |
+| errorCallback | <code>[onError](#module_camera.onError)</code> |  |
+| options | <code>[CameraOptions](#module_camera.CameraOptions)</code> | CameraOptions |
+
+**Example**
+```js
+navigator.camera.getPicture(cameraSuccess, cameraError, cameraOptions);
+```
+
+<a name="module_camera.stop"></a>
+
+### camera.stop()
+Closes the active camera or photo library picker UI.
+
+__Supported Platforms__
+
+- Android
+- iOS
+
+**Kind**: static method of <code>[camera](#module_camera)</code>
+**Example**
+```js
+navigator.camera.stop(onSuccess, onFail);
+
+function onSuccess() {
+    console.log('Camera stopped successfully.');
+}
+
+function onFail(message) {
+    alert('Failed because: ' + message);
+}
+```
+
+<a name="module_camera.cleanup"></a>
+
+### camera.cleanup()
+Removes intermediate image files that are kept in temporary storage
+after calling [`camera.getPicture`](#module_camera.getPicture). Applies only when the value of
+`Camera.sourceType` equals `Camera.PictureSourceType.CAMERA` and the
+`Camera.destinationType` equals `Camera.DestinationType.FILE_URI`.
+
+__Supported Platforms__
+
+- iOS
+
+**Kind**: static method of <code>[camera](#module_camera)</code>
+**Example**
+```js
+navigator.camera.cleanup(onSuccess, onFail);
+
+function onSuccess() {
+    console.log("Camera cleanup success.")
+}
+
+function onFail(message) {
+    alert('Failed because: ' + message);
+}
+```
+<a name="module_camera.onError"></a>
+
+### camera.onError : <code>function</code>
+Callback function that provides an error message.
+
+**Kind**: static typedef of <code>[camera](#module_camera)</code>
+
+| Param | Type | Description |
+| --- | --- | --- |
+| message | <code>string</code> | The message is provided by the device's native code. |
+
+<a name="module_camera.onSuccess"></a>
+
+### camera.onSuccess : <code>function</code>
+Callback function that provides the image data.
+
+**Kind**: static typedef of <code>[camera](#module_camera)</code>
+
+| Param | Type | Description |
+| --- | --- | --- |
+| imageData | <code>string</code> | Data URI, _or_ the image file URI, depending on [`cameraOptions`](#module_camera.CameraOptions) in effect. |
+
+**Example**
+```js
+// Show image captured with FILE_URI
+function cameraCallback(imageData) {
+    window.resolveLocalFileSystemURL(uri, (entry) => {
+        let image = document.getElementById('myImage');
+        image.src = entry.toURL();
+    }, onError);
+}
+
+// Show image captured with DATA_URL
+function cameraCallback(imageData) {
+   var image = document.getElementById('myImage');
+   image.src = imageData;
+}
+```
+<a name="module_camera.CameraOptions"></a>
+
+### camera.CameraOptions : <code>Object</code>
+Optional parameters to customize the camera settings.
+
+- [Quirks](#CameraOptions-quirks)
+
+**Kind**: static typedef of <code>[camera](#module_camera)</code>
+**Properties**
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| quality | <code>number</code> | <code>50</code> | Quality of the saved image, expressed as a range of 0-100, where 100 is typically full resolution with no loss from file compression. (Note that information about the camera's resolution is unavailable.) |
+| destinationType | <code>[DestinationType](#module_Camera.DestinationType)</code> | <code>FILE_URI</code> | Choose the format of the return value. |
+| sourceType | <code>[PictureSourceType](#module_Camera.PictureSourceType)</code> | <code>CAMERA</code> | Set the source of the picture. |
+| ~~allowEdit~~ | <code>Boolean</code> | <code>false</code> | **Deprecated**. Allow simple editing of image before selection. |
+| encodingType | <code>[EncodingType](#module_Camera.EncodingType)</code> | <code>JPEG</code> | Choose the  returned image file's encoding. |
+| targetWidth | <code>number</code> |  | Width in pixels to scale image. Must be used with `targetHeight`. Aspect ratio remains constant. |
+| targetHeight | <code>number</code> |  | Height in pixels to scale image. Must be used with `targetWidth`. Aspect ratio remains constant. |
+| mediaType | <code>[MediaType](#module_Camera.MediaType)</code> | <code>PICTURE</code> | Set the type of media to select from.  Only works when `PictureSourceType` is `PHOTOLIBRARY` or `SAVEDPHOTOALBUM`. |
+| correctOrientation | <code>Boolean</code> |  | Rotate the image to correct for the orientation of the device during capture. |
+| saveToPhotoAlbum | <code>Boolean</code> |  | Save the image to the photo album on the device after capture.<br />See [Android Quirks](#cameragetpicturesuccesscallback-errorcallback-options). |
+| cameraDirection | <code>[Direction](#module_Camera.Direction)</code> | <code>BACK</code> | Choose the camera to use (front- or back-facing). |
+
+---
+
+<a name="module_Camera"></a>
+
+## Camera
+<a name="module_Camera.DestinationType"></a>
+
+### Camera.DestinationType : <code>enum</code>
+Defines the output format of `Camera.getPicture` call.
+
+**Kind**: static enum property of <code>[Camera](#module_Camera)</code>
+**Properties**
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| DATA_URL | <code>number</code> | <code>0</code> | Return data uri. DATA_URL can be very memory intensive and cause app crashes or out of memory errors. Use FILE_URI if possible |
+| FILE_URI | <code>number</code> | <code>1</code> | Return file uri (content://media/external/images/media/2 for Android) |
+
+<a name="module_Camera.EncodingType"></a>
+
+### Camera.EncodingType : <code>enum</code>
+**Kind**: static enum property of <code>[Camera](#module_Camera)</code>
+**Properties**
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| JPEG | <code>number</code> | <code>0</code> | Return JPEG encoded image |
+| PNG | <code>number</code> | <code>1</code> | Return PNG encoded image |
+
+<a name="module_Camera.MediaType"></a>
+
+### Camera.MediaType : <code>enum</code>
+**Kind**: static enum property of <code>[Camera](#module_Camera)</code>
+**Properties**
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| PICTURE | <code>number</code> | <code>0</code> | Allow selection of still pictures only. DEFAULT. Will return format specified via DestinationType |
+| VIDEO | <code>number</code> | <code>1</code> | Allow selection of video only, ONLY RETURNS URL |
+| ALLMEDIA | <code>number</code> | <code>2</code> | Allow selection from all media types |
+
+<a name="module_Camera.PictureSourceType"></a>
+
+### Camera.PictureSourceType : <code>enum</code>
+Defines the output format of `Camera.getPicture` call.
+
+**Kind**: static enum property of <code>[Camera](#module_Camera)</code>
+**Properties**
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| PHOTOLIBRARY | <code>number</code> | <code>0</code> | Choose image from the device's photo library. |
+| CAMERA | <code>number</code> | <code>1</code> | Take picture from camera |
+| SAVEDPHOTOALBUM | <code>number</code> | <code>2</code> | Same as `PHOTOLIBRARY`, when running on Android or iOS 14+. On iOS older than 14, an image can only be chosen from the device's Camera Roll album with this setting. |
+
+<a name="module_Camera.Direction"></a>
+
+### Camera.Direction : <code>enum</code>
+**Kind**: static enum property of <code>[Camera](#module_Camera)</code>
+**Properties**
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| BACK | <code>number</code> | <code>0</code> | Use the back-facing camera |
+| FRONT | <code>number</code> | <code>1</code> | Use the front-facing camera |
+
+---
+
+## `camera.getPicture` Errata
+
+#### Example <a name="camera-getPicture-examples"></a>
+
+Take a photo and retrieve the image's file location:
+
+```javascript
+// Don't forget to install cordova-plugin-file for resolveLocalFileSystemURL!
+
+navigator.camera.getPicture(onSuccess, onFail, { quality: 50,
+    destinationType: Camera.DestinationType.FILE_URI });
+
+function onSuccess(imageURI) {
+    window.resolveLocalFileSystemURL(uri, (entry) => {
+        let img = document.getElementById('image');
+        img.src = entry.toURL();
+    }, onFail);
+}
+
+function onFail(message) {
+    alert('Failed because: ' + message);
+}
+```
+
+Take a photo and retrieve it as a Base64-encoded image:
+
+```javascript
+/**
+ * Warning: Using DATA_URL is not recommended! The DATA_URL destination
+ * type is very memory intensive, even with a low quality setting. Using it
+ * can result in out of memory errors and application crashes. Use FILE_URI
+ * instead.
+ */
+navigator.camera.getPicture(onSuccess, onFail, { quality: 25,
+    destinationType: Camera.DestinationType.DATA_URL
+});
+
+function onSuccess(imageData) {
+    var image = document.getElementById('myImage');
+    image.src = imageData;
+}
+
+function onFail(message) {
+    alert('Failed because: ' + message);
+}
+```
+
+#### Android Quirks
+
+Android uses intents to launch the camera activity on the device to capture
+images, and on phones with low memory, the Cordova activity may be killed.  In this
+scenario, the result from the plugin call will be delivered via the resume event.
+See [the Android Lifecycle guide][android_lifecycle]
+for more information. The `pendingResult.result` value will contain the value that
+would be passed to the callbacks (either the URI/URL or an error message). Check
+the `pendingResult.pluginStatus` to determine whether or not the call was
+successful.
+
+#### Browser Quirks
+
+Can only return photos as data URI image.
+
+#### iOS Quirks
+
+Including a JavaScript `alert()` in either of the callback functions
+can cause problems.  Wrap the alert within a `setTimeout()` to allow
+the iOS image picker to fully close before the alert
+displays:
+
+```javascript
+setTimeout(function() {
+    // do your thing here!
+}, 0);
+```
+
+## `CameraOptions` Errata <a name="CameraOptions-quirks"></a>
+
+#### Android Quirks
+
+- Any `cameraDirection` value results in a back-facing photo. (= You can only use the back camera)
+
+- **`allowEdit` is unpredictable on Android and it should not be used!** The Android implementation of this plugin tries to find and use an application on the user's device to do image cropping. The plugin has no control over what application the user selects to perform the image cropping and it is very possible that the user could choose an incompatible option and cause the plugin to fail. This sometimes works because most devices come with an application that handles cropping in a way that is compatible with this plugin (Google Photos), but it is unwise to rely on that being the case. If image editing is essential to your application, consider seeking a third party library or plugin that provides its own image editing utility for a more robust solution.
+
+- `Camera.PictureSourceType.PHOTOLIBRARY` and `Camera.PictureSourceType.SAVEDPHOTOALBUM` both display the same photo album.
+
+- Ignores the `encodingType` parameter if the image is unedited (i.e. `quality` is 100, `correctOrientation` is false, and no `targetHeight` or `targetWidth` are specified). The `CAMERA` source will always return the JPEG file given by the native camera and the `PHOTOLIBRARY` and `SAVEDPHOTOALBUM` sources will return the selected file in its existing encoding.
+
+[android_lifecycle]: http://cordova.apache.org/docs/en/dev/guide/platforms/android/lifecycle.html
+
+## Sample: Take Pictures, Select Pictures from the Picture Library, and Get Thumbnails <a name="sample"></a>
+
+The Camera plugin allows you to do things like open the device's Camera app and take a picture, or open the file picker and select one. The code snippets in this section demonstrate different tasks including:
+
+- Open the Camera app and [take a Picture](#takePicture)
+- Take a picture and [return thumbnails](#getThumbnails) (resized picture)
+- Take a picture and [generate a FileEntry object](#convert)
+- [Select a file](#selectFile) from the picture library
+- Select a JPEG image and [return thumbnails](#getFileThumbnails) (resized image)
+- Select an image and [generate a FileEntry object](#convert)
+
+## Take a Picture <a name="takePicture"></a>
+
+Before you can take a picture, you need to set some Camera plugin options to pass into the Camera plugin's `getPicture` function. Here is a common set of recommendations. In this example, you create the object that you will use for the Camera options, and set the `sourceType` dynamically to support both the Camera app and the file picker.
+
+```js
+function setOptions(srcType) {
+    var options = {
+        // Some common settings are 20, 50, and 100
+        quality: 50,
+        destinationType: Camera.DestinationType.FILE_URI,
+        // In this app, dynamically set the picture source, Camera or photo gallery
+        sourceType: srcType,
+        encodingType: Camera.EncodingType.JPEG,
+        mediaType: Camera.MediaType.PICTURE,
+        allowEdit: true,
+        correctOrientation: true
+    }
+    return options;
+}
+```
+
+Typically, you want to use a FILE_URI instead of a DATA_URL to avoid most memory issues. JPEG is the recommended encoding type for Android.
+
+You take a picture by passing in the options object to `getPicture`, which takes a CameraOptions object as the third argument. When you call `setOptions`, pass `Camera.PictureSourceType.CAMERA` as the picture source.
+
+```js
+function openCamera(selection) {
+
+    var srcType = Camera.PictureSourceType.CAMERA;
+    var options = setOptions(srcType);
+    var func = createNewFileEntry;
+
+    navigator.camera.getPicture(function cameraSuccess(imageUri) {
+
+        displayImage(imageUri);
+        // You may choose to copy the picture, save it somewhere, or upload.
+        func(imageUri);
+
+    }, function cameraError(error) {
+        console.debug("Unable to obtain picture: " + error, "app");
+
+    }, options);
+}
+```
+
+Once you take the picture, you can display it or do something else. In this example, call the app's `displayImage` function from the preceding code.
+
+```js
+function displayImage(imgUri) {
+
+    var elem = document.getElementById('imageFile');
+    elem.src = imgUri;
+}
+```
+
+## Take a Picture and Return Thumbnails (Resize the Picture) <a name="getThumbnails"></a>
+
+To get smaller images, you can return a resized image by passing both `targetHeight` and `targetWidth` values with your CameraOptions object. In this example, you resize the returned image to fit in a 100px by 100px box (the aspect ratio is maintained, so 100px is either the height or width, whichever is greater in the source).
+
+```js
+function openCamera(selection) {
+
+    var srcType = Camera.PictureSourceType.CAMERA;
+    var options = setOptions(srcType);
+    var func = createNewFileEntry;
+
+    if (selection == "camera-thmb") {
+        options.targetHeight = 100;
+        options.targetWidth = 100;
+    }
+
+    navigator.camera.getPicture(function cameraSuccess(imageUri) {
+
+        // Do something
+
+    }, function cameraError(error) {
+        console.debug("Unable to obtain picture: " + error, "app");
+
+    }, options);
+}
+```
+
+## Select a File from the Picture Library <a name="selectFile"></a>
+
+When selecting a file using the file picker, you also need to set the CameraOptions object. In this example, set the `sourceType` to `Camera.PictureSourceType.PHOTOLIBRARY`. To open the file picker, call `getPicture` just as you did in the previous example, passing in the success and error callbacks along with CameraOptions object.
+
+```js
+function openFilePicker(selection) {
+
+    var srcType = Camera.PictureSourceType.PHOTOLIBRARY;
+    var options = setOptions(srcType);
+    var func = createNewFileEntry;
+
+    navigator.camera.getPicture(
+        // success callback
+        (imageUri) => {
+            // Do something
+        },
+        // error callback
+        (error) => {
+            console.debug("Unable to obtain picture: " + error, "app");
+        },
+        options);
+}
+```
+
+## Select an Image and Return Thumbnails (resized images) <a name="getFileThumbnails"></a>
+
+Resizing a file selected with the file picker works just like resizing using the Camera app; set the `targetHeight` and `targetWidth` options.
+
+```js
+function openFilePicker(selection) {
+
+    var srcType = Camera.PictureSourceType.PHOTOLIBRARY;
+    var options = setOptions(srcType);
+    var func = createNewFileEntry;
+
+    if (selection == "picker-thmb") {
+        // To downscale a selected image,
+        // Camera.EncodingType (e.g., JPEG) must match the selected image type.
+        options.targetHeight = 100;
+        options.targetWidth = 100;
+    }
+
+    navigator.camera.getPicture(
+        // success callback
+        (imageUri) {
+            // Do something with image
+        },
+        // error callback
+        (error) => {
+            console.debug("Unable to obtain picture: " + error, "app");
+        },
+        options);
+}
+```
+
+## Take a picture and get a FileEntry Object <a name="convert"></a>
+
+If you want to do something like copy the image to another location, or upload it somewhere, an `FileEntry` is needed for the returned picture. To do this, call `window.resolveLocalFileSystemURL` on the file URI returned by the Camera app. If you need to use a FileEntry object, set the `destinationType` to `Camera.DestinationType.FILE_URI` in your CameraOptions object (this is also the default value).
+
+__NOTE:__ You need the [File plugin](https://www.npmjs.com/package/cordova-plugin-file) to call `window.resolveLocalFileSystemURL`.
+
+Here is the call to `window.resolveLocalFileSystemURL`. The image URI is passed to this function from the success callback of `getPicture`. The success handler of `resolveLocalFileSystemURL` receives the FileEntry object.
+
+```js
+function getFileEntry(imgUri) {
+    window.resolveLocalFileSystemURL(imgUri, function success(fileEntry) {
+
+        // Example 1: Copy to app data directory
+        window.resolveLocalFileSystemURL(cordova.file.dataDirectory, function (dataDirectoryEntry) {
+            fileEntry.copyTo(dataDirectoryEntry, "profilePic", onSuccess, onError);
+        }, onError);
+
+        // Example 2: Upload it!
+        fileEntry.file(function (file) {
+            var reader = new FileReader();
+
+            reader.onloadend = function() {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', 'https://myserver.com/upload');
+                xhr.onload = function () {
+                    // All done!
+                };
+                xhr.send(this.result);
+            };
+
+            reader.readAsArrayBuffer(file);
+        }, onError);
+    }, onError);
+}
+```
