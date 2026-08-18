@@ -672,7 +672,7 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
         contentValues.put(MediaStore.MediaColumns.MIME_TYPE, getMimetypeForEncodingType());
         Uri galleryOutputUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues);
 
-        InputStream fileStream = org.apache.cordova.camera.FileHelper.getInputStreamFromUriString(imageUri.toString(), cordova);
+        InputStream fileStream = com.inchanlabs.cordova.customcamera.FileHelper.getInputStreamFromUriString(imageUri.toString(), cordova);
         writeUncompressedImage(fileStream, galleryOutputUri);
     }
 
