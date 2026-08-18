@@ -513,9 +513,6 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
      */
     private void processResultFromCamera(int destType, Intent intent) throws IOException {
 
-        this.callbackContext.success(
-            "CAMERA_REACHED_PROCESS_RESULT");
-        return;
         
         int rotate = 0;
 
@@ -574,24 +571,42 @@ public class CameraLauncher extends CordovaPlugin implements MediaScannerConnect
             }
 
             // If sending base64 image back
-            if (destType == DATA_URL) {
-                bitmap = getScaledAndRotatedBitmap(sourceData, mimeType);
+                                if (destType == DATA_URL) {
+                    
+                        LOG.d(LOG_TAG, "=== DATA_URL DESTINATION ===");
+                    
+                        bitmap = getScaledAndRotatedBitmap(sourceData, mimeType);
+                    
+                        if (bitmap == null) {
+                    
+                            LOG.d(LOG_TAG, "Bitmap is null, trying intent data");
+                    
+                            if (intent != null && intent.getExtras() != null) {
+                                bitmap = (Bitmap) intent.getExtras().get("data");
+                            }
+                        }
+                    
+                        if (bitmap == null) {
+                    
+                            LOG.e(LOG_TAG, "Unable to create bitmap");
+                    
+                            this.failPicture("Unable to create bitmap!");
+                            return;
+                        }
+                    
+                        LOG.d(LOG_TAG,
+                                "Bitmap created successfully: "
+                                + bitmap.getWidth()
+                                + "x"
+                                + bitmap.getHeight());
+                    
+                        LOG.d(LOG_TAG,
+                                "Calling processPicture()");
+                    
+                        this.processPicture(bitmap, this.encodingType);
+                    }
 
-                if (bitmap == null) {
-                    // Try to get the bitmap from intent.
-                    bitmap = (Bitmap) intent.getExtras().get("data");
-                }
-
-                // Double-check the bitmap.
-                if (bitmap == null) {
-                    LOG.d(LOG_TAG, "I either have an unreadable imageUri or null bitmap");
-                    this.failPicture("Unable to create bitmap!");
-                    return;
-                }
-
-                this.processPicture(bitmap, this.encodingType);
-            }
-
+                                    
             // If sending filename back
             else if (destType == FILE_URI) {
                 // If all this is true we shouldn't compress the image.
